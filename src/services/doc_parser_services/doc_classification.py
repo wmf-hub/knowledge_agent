@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 
-from services.document_types import DocType
+from src.services.document_types import DocType
 
 SUPPORTED_EXTENSIONS: dict[str, DocType] = {
     ".pdf": DocType.PDF,

@@ -25,14 +25,15 @@ from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from config.settings import settings
-from services.doc_parser_services.chunking import Chunker
-from services.doc_parser_services.doc_classification import classify, make_doc_id
-from services.doc_parser_services.image_parsing import parse_image
-from services.doc_parser_services.PDF_parsing import parse_pdf
-from services.doc_parser_services.table_parsing import parse_table
-from services.doc_parser_services.text_parsing import parse_text
-from services.document_types import DocType, DocumentChunk
+from src.config.settings import settings
+from src.services.doc_parser_services.chunking import Chunker
+from src.services.doc_parser_services.vector_store import VectorStore
+from src.services.doc_parser_services.doc_classification import classify, make_doc_id
+from src.services.doc_parser_services.image_parsing import parse_image
+from src.services.doc_parser_services.PDF_parsing import parse_pdf
+from src.services.doc_parser_services.table_parsing import parse_table
+from src.services.doc_parser_services.text_parsing import parse_text
+from src.services.document_types import DocType, DocumentChunk
 
 
 class ParserState(TypedDict, total=False):
@@ -42,6 +43,7 @@ class ParserState(TypedDict, total=False):
     doc_id: str
     raw_texts: list[str]
     chunks: list[DocumentChunk]
+    num_added: int
 
 
 def build_graph():
@@ -68,14 +70,12 @@ def build_graph():
 
     def chunk_node(state: ParserState) -> ParserState:
         chunker = Chunker(settings.CHUNK_SIZE, settings.CHUNK_OVERLAP)
-        return {
-            "chunks": chunker.chunk(
-                texts=state.get("raw_texts", []),
-                doc_id=state["doc_id"],
-                doc_type=state["doc_type"],
-                source=state["file_path"],
-            )
-        }
+        return {"chunks": chunker.chunk(state["raw_texts"], state["doc_id"], state["doc_type"], state["file_path"])}
+
+    def vector_store_node(state: ParserState) -> ParserState:
+        vector_store = VectorStore()
+        num_added = vector_store.ingest_texts(state["chunks"])
+        return {"num_added": num_added}
 
     def route_by_type(state: ParserState) -> str:
         """按文档类型路由到对应解析组件"""
@@ -95,6 +95,7 @@ def build_graph():
     graph.add_node("parse_table", parse_table_node)
     graph.add_node("parse_text", parse_text_node)
     graph.add_node("chunk", chunk_node)
+    graph.add_node("vector_store", vector_store_node)
 
     graph.add_edge(START, "classify")
     graph.add_conditional_edges(
@@ -109,25 +110,26 @@ def build_graph():
     )
     for parse_node in ("parse_pdf", "parse_image", "parse_table", "parse_text"):
         graph.add_edge(parse_node, "chunk")
-    graph.add_edge("chunk", END)
+    graph.add_edge("chunk", "vector_store")
+    graph.add_edge("vector_store", END)
 
     return graph.compile()
 
 
 class DocParserAgent:
-    """文档解析 Agent：只负责调用子图，不做具体解析"""
+    """文档解析 Agent"""
 
     def __init__(self) -> None:
         self.graph = build_graph()
 
     async def parse(self, file_path: str) -> list[DocumentChunk]:
-        """解析单个文件，返回文档块列表"""
+        """解析单个文件并入库"""
         result = await self.graph.ainvoke({"file_path": file_path})
         return result.get("chunks", [])
 
-    async def parse_batch(self, file_paths: list[str]) -> list[DocumentChunk]:
-        """批量解析多个文件"""
-        all_chunks: list[DocumentChunk] = []
+    async def parse_batch(self, file_paths: list[str]) -> list[list[DocumentChunk]]:
+        """批量解析多个文件并入库"""
+        result = []
         for fp in file_paths:
-            all_chunks.extend(await self.parse(fp))
-        return all_chunks
+            result.append(await self.parse(fp))
+        return result

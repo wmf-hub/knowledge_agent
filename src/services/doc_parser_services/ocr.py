@@ -7,7 +7,7 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
-from config.settings import settings
+from src.config.settings import settings
 
 OCR_LOW_QUALITY_THRESHOLD = 0.6
 IMAGE_EXTENSIONS = (".img", ".png", ".jpg", ".jpeg")

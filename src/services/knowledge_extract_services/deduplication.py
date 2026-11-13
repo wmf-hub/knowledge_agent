@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from services.knowledge_extract_services.extraction_types import (
+from src.services.knowledge_extract_services.extraction_types import (
     Entity,
     ExtractionResult,
     KnowledgeEvent,

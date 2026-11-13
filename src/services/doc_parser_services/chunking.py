@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from services.document_types import DocType, DocumentChunk
+from src.services.document_types import DocType, DocumentChunk
 
 
 class Chunker:
@@ -26,6 +26,8 @@ class Chunker:
         source: str,
     ) -> list[DocumentChunk]:
         """将文本列表转换为文档块"""
+        if not texts:
+            return []
         chunks: list[DocumentChunk] = []
         idx = 0
         for text in texts:

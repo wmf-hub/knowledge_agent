@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from services.doc_parser_services.ocr import OCR_LOW_QUALITY_THRESHOLD, describe_image_with_llm, ocr
+from src.services.doc_parser_services.ocr import OCR_LOW_QUALITY_THRESHOLD, describe_image_with_llm, ocr
 
 
 async def parse_image(file_path: str) -> list[str]:

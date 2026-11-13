@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
-from services.doc_parser_services.ocr import (
+from src.services.doc_parser_services.ocr import (
     OCR_LOW_QUALITY_THRESHOLD,
     describe_image_with_llm,
     ocr,

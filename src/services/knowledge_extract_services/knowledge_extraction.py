@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from services.knowledge_extract_services.extraction_types import (
+from src.services.knowledge_extract_services.extraction_types import (
     Entity,
     ExtractionResult,
     KnowledgeEvent,
@@ -44,7 +44,7 @@ async def extract_from_text(text: str, source_id: str = "") -> ExtractionResult:
     from langchain_core.messages import HumanMessage, SystemMessage
     from langchain_openai import ChatOpenAI
 
-    from config.settings import settings
+    from src.config.settings import settings
 
     llm = ChatOpenAI(
         model=settings.llm_model,

@@ -24,7 +24,6 @@ class DocumentChunk:
     chunk_index: int
     doc_type: DocType
     metadata: dict[str, Any] = field(default_factory=dict)
-    embedding: list[float] | None = None
 
     @property
     def chunk_id(self) -> str:
