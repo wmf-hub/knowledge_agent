@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from services.knowledge_extract_services.extraction_types import ExtractionResult
+from src.services.knowledge_extract_services.extraction_types import ExtractionResult
 
 
 def to_triples(results: list[ExtractionResult]) -> list[tuple[str, str, str]]:
@@ -14,7 +14,7 @@ def to_triples(results: list[ExtractionResult]) -> list[tuple[str, str, str]]:
     ]
 
 
-def _safe_label(raw: str, fallback: str) -> str:
+def safe_label(raw: str, fallback: str) -> str:
     """把 LLM 产出的类型名清洗成合法 Cypher 标签，防止注入"""
     label = "".join(c if c.isalnum() or c == "_" else "_" for c in raw or "")
     return label if label and label[0].isalpha() else fallback
@@ -29,7 +29,7 @@ def write_to_neo4j(results: list[ExtractionResult]) -> int:
     """
     from neo4j import GraphDatabase
 
-    from config.settings import settings
+    from src.config.settings import settings
 
     driver = GraphDatabase.driver(
         settings.neo4j_uri, auth=(settings.neo4j_user, settings.neo4j_password)
@@ -40,7 +40,7 @@ def write_to_neo4j(results: list[ExtractionResult]) -> int:
             for result in results:
                 label_of: dict[str, str] = {}
                 for ent in result.entities:
-                    label = _safe_label(ent.node_label, "Concept")
+                    label = safe_label(ent.node_label, "Concept")
                     label_of[ent.name] = label
                     session.run(
                         f"MERGE (n:`{label}` {{name: $name}}) "
@@ -57,7 +57,7 @@ def write_to_neo4j(results: list[ExtractionResult]) -> int:
                     else:
                         head_clause = "MERGE (h:Entity {name: $head})"
                         tail_clause = "MERGE (t:Entity {name: $tail})"
-                    rel_type = _safe_label(rel.relation, "related_to")
+                    rel_type = safe_label(rel.relation, "related_to")
                     session.run(
                         f"{head_clause} {tail_clause} "
                         f"MERGE (h)-[:`{rel_type}`]->(t)",

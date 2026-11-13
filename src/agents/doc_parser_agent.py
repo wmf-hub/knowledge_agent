@@ -44,6 +44,7 @@ class ParserState(TypedDict, total=False):
     raw_texts: list[str]
     chunks: list[DocumentChunk]
     num_added: int
+    ingest: bool
 
 
 def build_graph():
@@ -88,6 +89,10 @@ def build_graph():
             return "parse_table"
         return "parse_text"
 
+    def should_ingest(state: ParserState) -> str:
+        """默认入库；调用方传 ingest=False 可跳过（例如由上游子图统一入库）"""
+        return "vector_store" if state.get("ingest", True) else END
+
     graph = StateGraph(ParserState)
     graph.add_node("classify", classify_node)
     graph.add_node("parse_pdf", parse_pdf_node)
@@ -110,7 +115,7 @@ def build_graph():
     )
     for parse_node in ("parse_pdf", "parse_image", "parse_table", "parse_text"):
         graph.add_edge(parse_node, "chunk")
-    graph.add_edge("chunk", "vector_store")
+    graph.add_conditional_edges("chunk", should_ingest, ["vector_store", END])
     graph.add_edge("vector_store", END)
 
     return graph.compile()
@@ -122,14 +127,18 @@ class DocParserAgent:
     def __init__(self) -> None:
         self.graph = build_graph()
 
-    async def parse(self, file_path: str) -> list[DocumentChunk]:
-        """解析单个文件并入库"""
-        result = await self.graph.ainvoke({"file_path": file_path})
+    async def parse(
+        self, file_path: str, ingest: bool = True
+    ) -> list[DocumentChunk]:
+        """解析单个文件；ingest=False 时仅返回文档块，不入库"""
+        result = await self.graph.ainvoke({"file_path": file_path, "ingest": ingest})
         return result.get("chunks", [])
 
-    async def parse_batch(self, file_paths: list[str]) -> list[list[DocumentChunk]]:
-        """批量解析多个文件并入库"""
+    async def parse_batch(
+        self, file_paths: list[str], ingest: bool = True
+    ) -> list[list[DocumentChunk]]:
+        """批量解析多个文件"""
         result = []
         for fp in file_paths:
-            result.append(await self.parse(fp))
+            result.append(await self.parse(fp, ingest=ingest))
         return result

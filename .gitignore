@@ -1,1 +1,6 @@
 .env
+__pycache__/
+*.pyc
+
+# 文档同步台账（运行时产物，不应提交）
+.sync_ledger.json
